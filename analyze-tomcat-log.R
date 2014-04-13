@@ -60,7 +60,9 @@ res_stats <- ddply(logs, .(request_begin_10sec),summarize,
 res_stats$request_begin <- as.POSIXct(res_stats$request_begin_10sec, origin=epoch)
 # delete unnecessary column
 res_stats$request_begin_10sec <- NULL
-
+# Add NA's to measurements where we have no data.  Prevents lines from being added where we have no data.
+res_stats_complete <- data.frame(request_begin=mround(time_range,10))
+res_stats_complete <- merge(x = res_stats_complete, y = res_stats, all.x=TRUE)
 
 
 ### Plotting ###
@@ -73,10 +75,11 @@ cplot <- ggplot(conn_count_long, aes(x=time, y=value, group=variable)) +
   ggtitle(paste0("Tomcat Concurrent Connections (",log_ts,")"))
 cplot
 ggsave(plot=cplot, file=paste0("concurrent-conns.",log_ts,".png"))
+
 # Plot delay statistics over time
-res_stats_long <- melt(res_stats, id=c("request_begin"))
+res_stats_long <- melt(res_stats_complete, id=c("request_begin"))
 dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
-  geom_point(aes(colour = variable)) +
+  geom_line(aes(colour = variable)) +
   labs(x="Time", y="Response Time (seconds)", title=paste0("Tomcat HTTP Response Time (",log_ts,")")) +
   scale_colour_hue(name="Statistic",
                       breaks=c("mean_response", "median_response", "max_response","min_response"),
