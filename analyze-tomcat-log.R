@@ -61,7 +61,7 @@ res_stats$request_begin <- as.POSIXct(res_stats$request_begin_10sec, origin=epoc
 # delete unnecessary column
 res_stats$request_begin_10sec <- NULL
 # Add NA's to measurements where we have no data.  Prevents lines from being added where we have no data.
-res_stats_complete <- data.frame(request_begin=mround(time_range,10))
+res_stats_complete <- data.frame(request_begin=as.POSIXct(mround(time_range,10),origin=epoch))
 res_stats_complete <- merge(x = res_stats_complete, y = res_stats, all.x=TRUE)
 
 
@@ -78,7 +78,6 @@ ggsave(plot=cplot, file=paste0("concurrent-conns.",log_ts,".png"))
 
 # Plot delay statistics over time
 res_stats_long <- melt(res_stats_complete, id=c("request_begin"))
-res_stats_long$request_begin <- as.POSIXct(res_stats_long$request_begin,origin=epoch)
 dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
   geom_line(aes(colour = variable)) +
   labs(x="Time", y="Response Time (seconds)", title=paste0("Tomcat HTTP Response Time (",log_ts,")")) +
@@ -88,8 +87,14 @@ dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
 dplot
 ggsave(plot=dplot, file=paste0("response-time.",log_ts,".png"))
 
-# Response time against connection count
+# Mean Response time against connection count
+conn_count$request_begin_10sec <- mround(as.numeric(conn_count$time),10) # 2088 entries
+conn_count_max <- ddply(conn_count, .(request_begin_10sec),summarize,
+                        max_conns = max(connections),na.rm=F)
 
+res_vs_conn <- data.frame(time=conn_count_max$request_begin_10sec, conn=conn_count_max$max_conns)
+res_vs_conn <- merge(x=res_vs_conn, y=res_stats,by.x="time", by.y="request_begin",all.x=TRUE)
+plot(res_vs_conn$conn, res_vs_conn$mean_response)
 
 # # Graphs Combined
 # # change connections to 10sec rounding
