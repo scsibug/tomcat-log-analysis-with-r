@@ -94,8 +94,12 @@ conn_count_max <- ddply(conn_count, .(request_begin_10sec),summarize,
 
 res_vs_conn <- data.frame(time=conn_count_max$request_begin_10sec, conn=conn_count_max$max_conns)
 res_vs_conn <- merge(x=res_vs_conn, y=res_stats,by.x="time", by.y="request_begin",all.x=TRUE)
-plot(res_vs_conn$conn, res_vs_conn$mean_response)
 
+ggplot(res_vs_conn, aes(x=conn, y=mean_response)) +
+  geom_point(shape=1) +    # Use hollow circles
+  geom_smooth(method=lm)
+
+help(plot)
 # # Graphs Combined
 # # change connections to 10sec rounding
 # conn_count$request_begin_10sec <- mround(as.numeric(conn_count$time),10)
