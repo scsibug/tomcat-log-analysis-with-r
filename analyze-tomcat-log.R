@@ -78,6 +78,7 @@ ggsave(plot=cplot, file=paste0("concurrent-conns.",log_ts,".png"))
 
 # Plot delay statistics over time
 res_stats_long <- melt(res_stats_complete, id=c("request_begin"))
+res_stats_long$request_begin <- as.POSIXct(res_stats_long$request_begin,origin=epoch)
 dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
   geom_line(aes(colour = variable)) +
   labs(x="Time", y="Response Time (seconds)", title=paste0("Tomcat HTTP Response Time (",log_ts,")")) +
@@ -86,6 +87,9 @@ dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
                       labels=c("Mean", "Median", "Maximum","Minimum"))
 dplot
 ggsave(plot=dplot, file=paste0("response-time.",log_ts,".png"))
+
+# Response time against connection count
+
 
 # # Graphs Combined
 # # change connections to 10sec rounding
