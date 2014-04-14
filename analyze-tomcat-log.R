@@ -9,7 +9,7 @@ logfile <- paste0("perf.",log_ts,".txt")
 # All of our timeseries data will be based on unix epoch
 epoch <- '1970-01-01'
 
-#### Read and preprocess data ####
+########## Read and preprocess data ##########
 # Read the logfile, split on spaces, consider dash as N/A
 logs <- read.table( file = logfile, na.strings = "-", stringsAsFactors = FALSE)
 colnames(logs) <- c("address", "remote_user", "request_end", "request_end_tz", "elapsed", "response_bytes", "method", "uri", "status")
@@ -64,9 +64,8 @@ res_stats$request_begin_10sec <- NULL
 res_stats_complete <- data.frame(request_begin=as.POSIXct(mround(time_range,10),origin=epoch))
 res_stats_complete <- merge(x = res_stats_complete, y = res_stats, all.x=TRUE)
 
-
-### Plotting ###
-# Plot concurrent connections over time.
+########## Plotting ##########
+### Plot concurrent connections over time ###
 conn_count_long <- melt(conn_count, id=c("time"))
 cplot <- ggplot(conn_count_long, aes(x=time, y=value, group=variable)) +
   geom_line() +
@@ -76,7 +75,7 @@ cplot <- ggplot(conn_count_long, aes(x=time, y=value, group=variable)) +
 cplot
 ggsave(plot=cplot, file=paste0("concurrent-conns.",log_ts,".png"))
 
-# Plot delay statistics over time
+### Plot delay statistics over time ###
 res_stats_long <- melt(res_stats_complete, id=c("request_begin"))
 dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
   geom_line(aes(colour = variable)) +
@@ -87,43 +86,18 @@ dplot <- ggplot(res_stats_long, aes(x=request_begin, y=value, group=variable)) +
 dplot
 ggsave(plot=dplot, file=paste0("response-time.",log_ts,".png"))
 
-# Mean Response time against connection count
-conn_count$request_begin_10sec <- mround(as.numeric(conn_count$time),10) # 2088 entries
+### Scatter plot of mean Response time against connection count ###
+# find max connection count over 10 second periods.
+conn_count$request_begin_10sec <- mround(as.numeric(conn_count$time),10)
 conn_count_max <- ddply(conn_count, .(request_begin_10sec),summarize,
                         max_conns = max(connections),na.rm=F)
 
+# Combine connection count and response time data into one dataframe
 res_vs_conn <- data.frame(time=conn_count_max$request_begin_10sec, conn=conn_count_max$max_conns)
 res_vs_conn <- merge(x=res_vs_conn, y=res_stats,by.x="time", by.y="request_begin",all.x=TRUE)
 
 ggplot(res_vs_conn, aes(x=conn, y=mean_response)) +
   geom_point(shape=1) +    # Use hollow circles
+  labs(x="HTTP Concurrent Connections", y="Response Time (seconds)", title=paste0("Tomcat HTTP Mean Response Time (",log_ts,")")) +
   geom_smooth(method=lm)
-
-help(plot)
-# # Graphs Combined
-# # change connections to 10sec rounding
-# conn_count$request_begin_10sec <- mround(as.numeric(conn_count$time),10)
-# conn_count_max <- ddply(conn_count, .(request_begin_10sec),summarize,
-#                    max_conns = max(connections),na.rm=F)
-# 
-# # conn_count will have an entry for all times, so use its X value
-# x <- conn_count_max$request_begin_10sec
-# d1 <- data.frame(x=x)
-# # merge d1 with res_stats, keeping all of d1, 
-# d1merge <- merge(x = d1, y = res_stats, by.x = "x", by.y="request_begin", all.x=TRUE)
-# d1 <- data.frame(x=x,y=d1merge$max_response)
-# d2 <- data.frame(x=x,y=conn_count_max$max_conns)
-# 
-# 
-# d1$panel <- "Max Response"
-# d2$panel <- "Connections"
-# 
-# d <- rbind(d1,d2)
-# # Use dates
-# d$x <- as.POSIXct(d$x, origin=epoch)
-# 
-# p <- ggplot(data = d, mapping = aes(x = x, y = y))
-# p <- p + facet_grid(panel ~ ., scale = "free")
-# p <- p + layer(data = d1,  geom = c( "point"), stat = "identity")
-# p <- p + layer(data = d2, geom = c("line"), stat="identity")
-# p
+ggsave(file=paste0("response-time.scatter.",log_ts,".png"))
